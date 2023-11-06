@@ -395,12 +395,13 @@ func (c *OVClient) GetAvailableServers(ServerHardwareUri string) (bool, error) {
 }
 
 // SubmitNewProfile - submit new profile template
-func (c *OVClient) SubmitNewProfile(p ServerProfile) (err error) {
+func (c *OVClient) SubmitNewProfile(p ServerProfile, force bool) (err error) {
 	log.Infof("Initializing creation of server profile for %s.", p.Name)
 	var (
 		uri    = "/rest/server-profiles"
 		server ServerHardware
 		t      *Task
+		querys = map[string]interface{}{}
 	)
 	// refresh login
 	c.RefreshLogin()
@@ -449,7 +450,11 @@ func (c *OVClient) SubmitNewProfile(p ServerProfile) (err error) {
 		p.ManagementProcessor = mp
 	}
 
-	data, err := c.RestAPICall(rest.POST, uri, p)
+	if force {
+		querys["force"] = "all"
+	}
+
+	data, err := c.RestAPICall(rest.POST, uri, p, querys)
 	if err != nil {
 		t.TaskIsDone = true
 		log.Errorf("Error submitting new profile request: %s", err)
@@ -472,7 +477,7 @@ func (c *OVClient) SubmitNewProfile(p ServerProfile) (err error) {
 }
 
 // create profile from template
-func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile, blade ServerHardware) error {
+func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile, blade ServerHardware, force bool) error {
 	log.Debugf("TEMPLATE : %+v\n", template)
 	var (
 		new_template ServerProfile
@@ -513,7 +518,7 @@ func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile
 	new_template.Name = name
 	log.Debugf("new_template -> %+v", new_template)
 
-	err = c.SubmitNewProfile(new_template)
+	err = c.SubmitNewProfile(new_template, force)
 	return err
 }
 

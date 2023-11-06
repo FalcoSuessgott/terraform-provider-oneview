@@ -40,6 +40,11 @@ func resourceServerProfile() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
+			"force": {
+				Type: schema.TypeBool,
+				Optional: true,
+				Default: false,
+			},
 			"boot": {
 				Type:     schema.TypeList,
 				Optional: true,
@@ -1970,7 +1975,7 @@ func resourceServerProfileCreate(d *schema.ResourceData, meta interface{}) error
 	}
 	//Cleaning up SP  by removing spt related fields
 	config.ovClient.Cleanup(&serverProfile)
-	err := config.ovClient.SubmitNewProfile(serverProfile)
+	err := config.ovClient.SubmitNewProfile(serverProfile, d.Get("force").(bool))
 	d.SetId(d.Get("name").(string))
 
 	if err != nil {
@@ -1981,6 +1986,7 @@ func resourceServerProfileCreate(d *schema.ResourceData, meta interface{}) error
 			return err
 		}
 	}
+	
 	return resourceServerProfileRead(d, meta)
 }
 

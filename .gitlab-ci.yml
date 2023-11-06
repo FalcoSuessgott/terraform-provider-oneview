@@ -1,0 +1,55 @@
+---
+include:
+    - project: t-dci-cloud/bm4x/bm4x-pipelines
+      ref: main
+      file:
+      # workflows
+        - workflows.yml
+
+      # defaults
+        - defaults.yml
+
+      # stage: validate
+      #- go-mod-tidy.yml
+      #- gitlint.yml
+      #- yamllint.yml
+      #- shfmt.yml
+      #- terraform-format.yml
+      #- gitlint.yml
+
+      # stage: test
+      #- go-unittests.yml
+
+      # stage: release
+        - goreleaser.yml
+        - terraform-provider-release.yml
+        - semantic-release.yml
+
+stages:
+    - validate
+  #- test
+    - release
+
+variables:
+  PROXY_ADDR: http://10.223.204.42:3128
+  NO_PROXY: '*.int.oasis.telekom.de,*.oam.oasis.telekom.de,10.46.233.2,10.90.98.196,10.88.108.233'
+  PROVIDER_NAME: oneview
+  GITLAB_TOKEN: ${DEPLOYMENT_TOKEN}
+  GPG_FINGERPRINT: 98550B14DC2C009E
+
+provider_release:
+  extends: .terraform_provider_release
+  parallel:
+    matrix:
+      # test
+      - TFE_HOSTNAME: oa89694terrar2.oam.oasis.telekom.de
+        TFE_ORGANIZATION: BM4X-test
+        TFE_TOKEN: ${TFE_REF_API_TOKEN}
+      # ref
+      - TFE_HOSTNAME: oa89694terrar2.oam.oasis.telekom.de
+        TFE_ORGANIZATION: BM4X-pre
+        TFE_TOKEN: ${TFE_REF_API_TOKEN}
+      # prod
+      - TFE_HOSTNAME: oa89693terra02.int.oasis.telekom.de
+        TFE_ORGANIZATION: bm4x
+        TFE_TOKEN: ${TFE_PROD_API_TOKEN}

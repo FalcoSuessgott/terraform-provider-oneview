@@ -33,7 +33,7 @@ stages:
 variables:
   PROXY_ADDR: http://10.223.204.42:3128
   NO_PROXY: '*.int.oasis.telekom.de,*.oam.oasis.telekom.de,10.46.233.2,10.90.98.196,10.88.108.233'
-  PROVIDER_NAME: oneview
+  PROVIDER_NAME: oneoview
   GITLAB_TOKEN: ${DEPLOYMENT_TOKEN}
   GPG_FINGERPRINT: 98550B14DC2C009E
 

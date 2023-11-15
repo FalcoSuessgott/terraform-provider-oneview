@@ -40,10 +40,11 @@ func resourceServerProfile() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"force": {
-				Type: schema.TypeBool,
+			"force_flags": {
+				Type:     schema.TypeList,
 				Optional: true,
-				Default: false,
+				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"boot": {
 				Type:     schema.TypeList,
@@ -1975,7 +1976,31 @@ func resourceServerProfileCreate(d *schema.ResourceData, meta interface{}) error
 	}
 	//Cleaning up SP  by removing spt related fields
 	config.ovClient.Cleanup(&serverProfile)
-	err := config.ovClient.SubmitNewProfile(serverProfile, d.Get("force").(bool))
+
+	providedForceFlags := d.Get("force_flags").([]interface{})
+	forceFlags := []ov.ForceFlag{}
+
+	for _, f := range providedForceFlags {
+		// see https://github.com/HewlettPackard/oneview-golang/blob/master/ov/profiles.go#L52 for supported force flags
+		switch f.(string) {
+		case "ignoreSANWarnings":
+			forceFlags = append(forceFlags, ov.ForceIgnoreSANWarnings)
+		case "ignoreServerHealth":
+			forceFlags = append(forceFlags, ov.ForceIgnoreServerHealth)
+		case "ignoreLSWarnings":
+			forceFlags = append(forceFlags, ov.ForceIgnoreLSWarnings)
+		case "all":
+			forceFlags = append(forceFlags, ov.ForceIgnoreAll)
+		case "none":
+			forceFlags = append(forceFlags, ov.ForceIgnoreNone)
+		default:
+			return fmt.Errorf("invalid force flag." +
+				"(supported values: \"ignoreSANWarnings\", \"ignoreServerHealth\", \"ignoreLSWarnings\", \"all\", \"none\")")
+		}
+	}
+
+	err := config.ovClient.SubmitNewProfile(serverProfile, forceFlags...)
+
 	d.SetId(d.Get("name").(string))
 
 	if err != nil {
@@ -1986,7 +2011,6 @@ func resourceServerProfileCreate(d *schema.ResourceData, meta interface{}) error
 			return err
 		}
 	}
-	
 	return resourceServerProfileRead(d, meta)
 }
 

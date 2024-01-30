@@ -21,13 +21,44 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
+	"strings"
 
 	"github.com/HewlettPackard/oneview-golang/rest"
 	"github.com/HewlettPackard/oneview-golang/utils"
 	"github.com/docker/machine/libmachine/log"
 )
+
+type ForceFlag int
+
+const (
+	// ForceIgnoreSANWarnings When provided, the operation will ignore warnings for non-critical issues detected in the SAN storage configuration.
+	ForceIgnoreSANWarnings ForceFlag = iota
+
+	// ForceIgnoreServerHealth When provided, the operation will ignore the check to verify that the selected server's health is OK.
+	ForceIgnoreServerHealth
+
+	// ForceIgnoreLSWarnings When provided, the operation will ignore the validation warnings from local storage.
+	ForceIgnoreLSWarnings
+
+	// ForceIgnoreAll When provided, all warnings will be ignored.
+	ForceIgnoreAll
+
+	// ForceIgnoreNone When provided, none of the warnings will be ignored.
+	ForceIgnoreNone
+)
+
+func (f ForceFlag) String() string {
+	forceFlagMap := map[ForceFlag]string{
+		ForceIgnoreSANWarnings:  "ignoreSANWarnings",
+		ForceIgnoreServerHealth: "ignoreServerHealth",
+		ForceIgnoreLSWarnings:   "ignoreLSWarnings",
+		ForceIgnoreAll:          "all",
+		ForceIgnoreNone:         "none",
+	}
+
+	return forceFlagMap[f]
+}
 
 // FirmwareOption structure for firware settings
 type FirmwareOption struct {
@@ -395,13 +426,16 @@ func (c *OVClient) GetAvailableServers(ServerHardwareUri string) (bool, error) {
 }
 
 // SubmitNewProfile - submit new profile template
-func (c *OVClient) SubmitNewProfile(p ServerProfile, force bool) (err error) {
+func (c *OVClient) SubmitNewProfile(p ServerProfile, ignoreFlags ...ForceFlag) (err error) {
 	log.Infof("Initializing creation of server profile for %s.", p.Name)
 	var (
 		uri    = "/rest/server-profiles"
 		server ServerHardware
 		t      *Task
-		querys = map[string]interface{}{}
+		// if no warning flags has been provided, use default value:
+		forceFlags = map[string]interface{}{
+			"force": ForceIgnoreNone,
+		}
 	)
 	// refresh login
 	c.RefreshLogin()
@@ -417,20 +451,17 @@ func (c *OVClient) SubmitNewProfile(p ServerProfile, force bool) (err error) {
 
 		isHardwareAvailable, err := c.GetAvailableServers(p.ServerHardwareURI.String())
 		if err != nil || isHardwareAvailable == false {
-			log.Errorf("Error getting available Hardware: %s", p.ServerHardwareURI.String())
 			if err != nil {
-				log.Warnf("Error: %s", err)
+				return fmt.Errorf("error getting available hardware: %v", err)
 			}
-			os.Exit(1)
 		}
 
 		server, err = c.GetServerHardwareByUri(p.ServerHardwareURI)
 	}
 
 	server, err = c.GetServerHardwareByUri(p.ServerHardwareURI)
-
 	if err != nil {
-		log.Warnf("Problem getting server hardware, %s", err)
+		return fmt.Errorf("problem getting server hardware, %v", err)
 	}
 
 	// power off the server so that we can add to SP
@@ -440,8 +471,9 @@ func (c *OVClient) SubmitNewProfile(p ServerProfile, force bool) (err error) {
 
 	serverHardwareType, err := c.GetServerHardwareTypeByUri(server.ServerHardwareTypeURI)
 	if err != nil {
-		log.Warnf("Error getting server hardware type %s", err)
+		return fmt.Errorf("Error getting server hardware type %v", err)
 	}
+
 	serverHarwdareTypeGen := serverHardwareType.Generation
 
 	var emptyMgmtProcessorsStruct ManagementProcessors
@@ -450,22 +482,27 @@ func (c *OVClient) SubmitNewProfile(p ServerProfile, force bool) (err error) {
 		p.ManagementProcessor = mp
 	}
 
-	if force {
-		querys["force"] = "all"
+	// append force flags comma separated
+	if len(ignoreFlags) > 0 {
+		var flags []string
+
+		for _, i := range ignoreFlags {
+			flags = append(flags, i.String())
+		}
+
+		forceFlags["force"] = strings.Join(flags, ",")
 	}
 
-	data, err := c.RestAPICall(rest.POST, uri, p, querys)
+	data, err := c.RestAPICall(rest.POST, uri, p, forceFlags)
 	if err != nil {
 		t.TaskIsDone = true
-		log.Errorf("Error submitting new profile request: %s", err)
-		return err
+		return fmt.Errorf("Error submitting new profile request: %v", err)
 	}
 
 	log.Debugf("Response New Profile %s", data)
 	if err := json.Unmarshal([]byte(data), &t); err != nil {
 		t.TaskIsDone = true
-		log.Errorf("Error with task un-marshal: %s", err)
-		return err
+		return fmt.Errorf("Error with task un-marshal: %s", err)
 	}
 
 	err = t.Wait()
@@ -477,7 +514,7 @@ func (c *OVClient) SubmitNewProfile(p ServerProfile, force bool) (err error) {
 }
 
 // create profile from template
-func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile, blade ServerHardware, force bool) error {
+func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile, blade ServerHardware, ignoreFlags ...ForceFlag) error {
 	log.Debugf("TEMPLATE : %+v\n", template)
 	var (
 		new_template ServerProfile
@@ -518,7 +555,11 @@ func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile
 	new_template.Name = name
 	log.Debugf("new_template -> %+v", new_template)
 
+<<<<<<< HEAD
 	err = c.SubmitNewProfile(new_template, force)
+=======
+	err = c.SubmitNewProfile(new_template, ignoreFlags...)
+>>>>>>> f66a20b1 (feat(serverprofile): add force param to serverprofile creation (#551))
 	return err
 }
 

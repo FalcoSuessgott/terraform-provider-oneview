@@ -555,11 +555,7 @@ func (c *OVClient) CreateProfileFromTemplate(name string, template ServerProfile
 	new_template.Name = name
 	log.Debugf("new_template -> %+v", new_template)
 
-<<<<<<< HEAD
-	err = c.SubmitNewProfile(new_template, force)
-=======
 	err = c.SubmitNewProfile(new_template, ignoreFlags...)
->>>>>>> f66a20b1 (feat(serverprofile): add force param to serverprofile creation (#551))
 	return err
 }
 

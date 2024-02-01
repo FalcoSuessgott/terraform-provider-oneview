@@ -180,7 +180,7 @@ func (t *Task) NewProfileTask(c *OVClient) *Task {
 		URI:      "",
 		Name:     "",
 		Owner:    "",
-		Timeout:  270, // default 45min
+		Timeout:  540, // default 45min (270 * 10 / 60) -> changed to 90 min 
 		WaitTime: 10}  // default 10sec, impacts Timeout
 }
 
